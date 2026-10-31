@@ -1,0 +1,846 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "UWB Indoor Positioning API",
+    "version": "1.1.0",
+    "description": "REST API for the UWB Indoor Positioning System — manages anchors, tags, measurements, positions, and configuration."
+  },
+  "servers": [{ "url": "/", "description": "Current server" }],
+  "paths": {
+    "/api/health": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Server health check",
+        "responses": {
+          "200": {
+            "description": "Server is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "ok" },
+                    "server_time": { "type": "string", "format": "date-time" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/anchors": {
+      "get": {
+        "tags": ["Anchors"],
+        "summary": "List active anchors with calibrated positions",
+        "responses": {
+          "200": {
+            "description": "Array of anchors",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "anchor_id": { "type": "integer" },
+                      "label": { "type": "string" },
+                      "hardware_id": { "type": "string", "nullable": true },
+                      "x_m": { "type": "number", "nullable": true },
+                      "y_m": { "type": "number", "nullable": true },
+                      "z_m": { "type": "number", "nullable": true }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Anchors"],
+        "summary": "Create anchor with initial calibration",
+        "description": "Creates an anchor and its first calibration entry in a single transaction.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["label", "x_m", "y_m", "z_m"],
+                "properties": {
+                  "label": { "type": "string", "example": "Anchor_E" },
+                  "hardware_id": { "type": "string", "example": "8617" },
+                  "x_m": { "type": "number", "example": 5.0 },
+                  "y_m": { "type": "number", "example": 4.0 },
+                  "z_m": { "type": "number", "example": 2.5 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Anchor created with calibration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "anchor_id": { "type": "integer" },
+                    "label": { "type": "string" },
+                    "hardware_id": { "type": "string", "nullable": true },
+                    "is_active": { "type": "boolean" },
+                    "created_at": { "type": "string", "format": "date-time" },
+                    "x_m": { "type": "number" },
+                    "y_m": { "type": "number" },
+                    "z_m": { "type": "number" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Validation error" }
+        }
+      }
+    },
+    "/api/anchors/{id}": {
+      "put": {
+        "tags": ["Anchors"],
+        "summary": "Update anchor label/active status and optionally recalibrate position",
+        "description": "Updates anchor fields. If x_m, y_m, z_m are provided, deactivates the old calibration and inserts a new one.",
+        "parameters": [
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "label": { "type": "string" },
+                  "hardware_id": { "type": "string" },
+                  "is_active": { "type": "boolean" },
+                  "x_m": { "type": "number" },
+                  "y_m": { "type": "number" },
+                  "z_m": { "type": "number" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated anchor with current calibration" },
+          "404": { "description": "Anchor not found" }
+        }
+      }
+    },
+    "/api/tags": {
+      "get": {
+        "tags": ["Tags"],
+        "summary": "List all tags",
+        "responses": {
+          "200": {
+            "description": "Array of tags",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "tag_id": { "type": "integer" },
+                      "label": { "type": "string" },
+                      "hardware_id": { "type": "string", "nullable": true },
+                      "source": { "type": "string", "enum": ["virtual", "real"] },
+                      "is_active": { "type": "boolean" },
+                      "created_at": { "type": "string", "format": "date-time" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Tags"],
+        "summary": "Create a new tag",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["label"],
+                "properties": {
+                  "label": { "type": "string", "example": "Forklift #3" },
+                  "hardware_id": { "type": "string", "example": "a49c" },
+                  "source": { "type": "string", "enum": ["virtual", "real"], "default": "real" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Tag created" },
+          "400": { "description": "Validation error" }
+        }
+      }
+    },
+    "/api/tags/{id}": {
+      "put": {
+        "tags": ["Tags"],
+        "summary": "Update a tag",
+        "parameters": [
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "label": { "type": "string" },
+                  "hardware_id": { "type": "string" },
+                  "source": { "type": "string", "enum": ["virtual", "real"] },
+                  "is_active": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated tag" },
+          "404": { "description": "Tag not found" }
+        }
+      }
+    },
+    "/api/config/calc": {
+      "get": {
+        "tags": ["Config"],
+        "summary": "Get active calculation config",
+        "responses": {
+          "200": {
+            "description": "Active calculation configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "calc_config_id": { "type": "integer" },
+                    "name": { "type": "string" },
+                    "window_size_ms": { "type": "integer" },
+                    "min_anchors": { "type": "integer" },
+                    "max_range_m": { "type": "number" },
+                    "update_interval_ms": { "type": "integer" },
+                    "safety_margin_ms": { "type": "integer" }
+                  }
+                }
+              }
+            }
+          },
+          "404": { "description": "No active config found" }
+        }
+      }
+    },
+    "/api/config/calc/{id}": {
+      "put": {
+        "tags": ["Config"],
+        "summary": "Update calculation config",
+        "parameters": [
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "window_size_ms": { "type": "integer" },
+                  "min_anchors": { "type": "integer" },
+                  "max_range_m": { "type": "number" },
+                  "update_interval_ms": { "type": "integer" },
+                  "safety_margin_ms": { "type": "integer" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated config" },
+          "404": { "description": "Config not found" }
+        }
+      }
+    },
+    "/api/config/sim": {
+      "get": {
+        "tags": ["Config"],
+        "summary": "Get active simulation config",
+        "responses": {
+          "200": {
+            "description": "Active simulation configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "sim_config_id": { "type": "integer" },
+                    "name": { "type": "string" },
+                    "tick_rate_hz": { "type": "integer" },
+                    "noise_std_m": { "type": "number" },
+                    "flush_size": { "type": "integer" },
+                    "flush_interval_ms": { "type": "integer" }
+                  }
+                }
+              }
+            }
+          },
+          "404": { "description": "No active config found" }
+        }
+      }
+    },
+    "/api/config/sim/{id}": {
+      "put": {
+        "tags": ["Config"],
+        "summary": "Update simulation config",
+        "parameters": [
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tick_rate_hz": { "type": "integer" },
+                  "noise_std_m": { "type": "number" },
+                  "flush_size": { "type": "integer" },
+                  "flush_interval_ms": { "type": "integer" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated config" },
+          "404": { "description": "Config not found" }
+        }
+      }
+    },
+    "/api/measurements/hardware": {
+      "post": {
+        "tags": ["Measurements"],
+        "summary": "Insert DS-TWR measurements from DW1000 hardware",
+        "description": "Accepts a single measurement object or an array. All 6 DS-TWR timestamps are required. Devices can be identified by hardware_id (string, auto-registers if new) or by DB integer ID. Server assigns measured_at timestamp and range is computed later by the calculator service.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "description": "Single measurement",
+                    "properties": {
+                      "anchor_hardware_id": { "type": "string", "description": "Hardware address string (e.g. \"AA:BB:CC:DD\"). Auto-registers new devices.", "example": "AA:BB:CC:DD" },
+                      "tag_hardware_id": { "type": "string", "description": "Hardware address string. Auto-registers new devices.", "example": "11:22:33:44" },
+                      "anchor_id": { "type": "integer", "description": "Alternative: use DB integer ID instead of anchor_hardware_id" },
+                      "tag_id": { "type": "integer", "description": "Alternative: use DB integer ID instead of tag_hardware_id" },
+                      "timePollSent": { "type": "integer", "description": "t1 — DW1000 40-bit tick counter", "example": 123456789 },
+                      "timePollReceived": { "type": "integer", "description": "t2", "example": 123456800 },
+                      "timePollAckSent": { "type": "integer", "description": "t3", "example": 123456810 },
+                      "timePollAckReceived": { "type": "integer", "description": "t4", "example": 123456820 },
+                      "timeRangeSent": { "type": "integer", "description": "t5", "example": 123456830 },
+                      "timeRangeReceived": { "type": "integer", "description": "t6", "example": 123456840 },
+                      "fp_power": { "type": "number", "description": "First path power in dBm (optional)", "example": -81.5 },
+                      "rx_power": { "type": "number", "description": "Receive power in dBm (optional)", "example": -79.2 }
+                    },
+                    "required": ["timePollSent", "timePollReceived", "timePollAckSent", "timePollAckReceived", "timeRangeSent", "timeRangeReceived"]
+                  },
+                  {
+                    "type": "array",
+                    "description": "Batch of measurements (max 1000)",
+                    "items": { "$ref": "#/paths/~1api~1measurements~1hardware/post/requestBody/content/application~1json/schema/oneOf/0" }
+                  }
+                ]
+              },
+              "examples": {
+                "single": {
+                  "summary": "Single measurement with hardware IDs",
+                  "value": {
+                    "anchor_hardware_id": "AA:BB:CC:DD",
+                    "tag_hardware_id": "11:22:33:44",
+                    "timePollSent": 123456789,
+                    "timePollReceived": 123456800,
+                    "timePollAckSent": 123456810,
+                    "timePollAckReceived": 123456820,
+                    "timeRangeSent": 123456830,
+                    "timeRangeReceived": 123456840,
+                    "fp_power": -81.5,
+                    "rx_power": -79.2
+                  }
+                },
+                "batch": {
+                  "summary": "Batch with 2 measurements",
+                  "value": [
+                    {
+                      "anchor_hardware_id": "AA:BB:CC:DD",
+                      "tag_hardware_id": "11:22:33:44",
+                      "timePollSent": 123456789,
+                      "timePollReceived": 123456800,
+                      "timePollAckSent": 123456810,
+                      "timePollAckReceived": 123456820,
+                      "timeRangeSent": 123456830,
+                      "timeRangeReceived": 123456840
+                    },
+                    {
+                      "anchor_hardware_id": "EE:FF:00:11",
+                      "tag_hardware_id": "11:22:33:44",
+                      "timePollSent": 123456789,
+                      "timePollReceived": 123456800,
+                      "timePollAckSent": 123456810,
+                      "timePollAckReceived": 123456820,
+                      "timeRangeSent": 123456830,
+                      "timeRangeReceived": 123456840
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Measurements inserted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "inserted": { "type": "integer", "example": 2 },
+                    "skipped": { "type": "integer", "example": 0 },
+                    "anchor_ids": { "type": "array", "items": { "type": "integer" }, "description": "Resolved DB anchor IDs used", "example": [1, 2] },
+                    "tag_ids": { "type": "array", "items": { "type": "integer" }, "description": "Resolved DB tag IDs used", "example": [1] }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Validation error (missing timestamps, no valid rows, or batch too large)" }
+        }
+      }
+    },
+    "/api/measurements": {
+      "post": {
+        "tags": ["Measurements"],
+        "summary": "Batch insert measurements",
+        "description": "Accepts up to 1000 measurements per request. Each row must provide either all 6 tick fields (t1-t6) OR range_m. If only ticks are provided, range_m is computed via DS-TWR. Invalid rows are skipped and reported in the response.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["measurements"],
+                "properties": {
+                  "measurements": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": ["measured_at", "anchor_id", "tag_id"],
+                      "properties": {
+                        "measured_at": { "type": "string", "format": "date-time" },
+                        "anchor_id": { "type": "integer" },
+                        "tag_id": { "type": "integer" },
+                        "t1_ticks": { "type": "integer", "description": "Optional if range_m is provided" },
+                        "t2_ticks": { "type": "integer", "description": "Optional if range_m is provided" },
+                        "t3_ticks": { "type": "integer", "description": "Optional if range_m is provided" },
+                        "t4_ticks": { "type": "integer", "description": "Optional if range_m is provided" },
+                        "t5_ticks": { "type": "integer", "description": "Optional if range_m is provided" },
+                        "t6_ticks": { "type": "integer", "description": "Optional if range_m is provided" },
+                        "range_m": { "type": "number", "description": "Required if tick fields are not all provided" },
+                        "fp_power": { "type": "number" },
+                        "rx_power": { "type": "number" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Measurements inserted (with optional skipped row details)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "inserted": { "type": "integer" },
+                    "skipped": { "type": "integer" },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "index": { "type": "integer" },
+                          "error": { "type": "string" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Validation error (no valid rows)" }
+        }
+      },
+      "get": {
+        "tags": ["Measurements"],
+        "summary": "Fetch measurements in a time window",
+        "parameters": [
+          {
+            "in": "query", "name": "since", "required": true,
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "Lower bound (exclusive), ISO 8601",
+            "example": "2000-01-01T00:00:00Z"
+          },
+          {
+            "in": "query", "name": "until", "required": true,
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "Upper bound (inclusive), ISO 8601",
+            "example": "2099-01-01T00:00:00Z"
+          },
+          {
+            "in": "query", "name": "max_range_m",
+            "schema": { "type": "number", "default": 50.0 },
+            "description": "Filter out measurements exceeding this range"
+          },
+          {
+            "in": "query", "name": "tag_id",
+            "schema": { "type": "integer" },
+            "description": "Optional — filter by tag ID"
+          },
+          {
+            "in": "query", "name": "limit",
+            "schema": { "type": "integer", "default": 10000, "maximum": 50000 },
+            "description": "Maximum number of rows to return"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Measurements in the time window",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "measurements": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "measured_at": { "type": "string", "format": "date-time" },
+                          "anchor_id": { "type": "integer" },
+                          "tag_id": { "type": "integer" },
+                          "t1_ticks": { "type": "integer" },
+                          "t2_ticks": { "type": "integer" },
+                          "t3_ticks": { "type": "integer" },
+                          "t4_ticks": { "type": "integer" },
+                          "t5_ticks": { "type": "integer" },
+                          "t6_ticks": { "type": "integer" },
+                          "range_m": { "type": "number" },
+                          "fp_power": { "type": "number" },
+                          "rx_power": { "type": "number" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Missing required query params" }
+        }
+      }
+    },
+    "/api/positions": {
+      "post": {
+        "tags": ["Positions"],
+        "summary": "Batch insert calculated positions (used by calculator)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["positions"],
+                "properties": {
+                  "positions": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "calculated_at": { "type": "string", "format": "date-time" },
+                        "tag_id": { "type": "integer" },
+                        "x_m": { "type": "number" },
+                        "y_m": { "type": "number" },
+                        "z_m": { "type": "number" },
+                        "error_est_m": { "type": "number" },
+                        "anchors_used": { "type": "integer" },
+                        "method": { "type": "string" },
+                        "calc_config_id": { "type": "integer" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Positions inserted" },
+          "400": { "description": "Validation error" }
+        }
+      },
+      "get": {
+        "tags": ["Positions"],
+        "summary": "Get position history for a tag",
+        "parameters": [
+          { "in": "query", "name": "tag_id", "schema": { "type": "integer", "default": 1 } },
+          { "in": "query", "name": "limit", "schema": { "type": "integer", "default": 50, "maximum": 1000 } },
+          {
+            "in": "query", "name": "since",
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "Optional lower bound (exclusive), ISO 8601"
+          },
+          {
+            "in": "query", "name": "until",
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "Optional upper bound (inclusive), ISO 8601"
+          }
+        ],
+        "responses": {
+          "200": { "description": "Position history (newest first)" }
+        }
+      }
+    },
+    "/api/positions/latest": {
+      "get": {
+        "tags": ["Positions"],
+        "summary": "Get latest position per tag",
+        "responses": {
+          "200": {
+            "description": "Latest position for each active tag",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "tag_id": { "type": "integer" },
+                      "x_m": { "type": "number" },
+                      "y_m": { "type": "number" },
+                      "z_m": { "type": "number" },
+                      "error_est_m": { "type": "number" },
+                      "anchors_used": { "type": "integer" },
+                      "calculated_at": { "type": "string", "format": "date-time" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hardware/status": {
+      "get": {
+        "tags": ["Hardware"],
+        "summary": "Get hardware active status",
+        "description": "Returns whether hardware data collection is currently enabled. This is an in-memory toggle controlled from the dashboard.",
+        "responses": {
+          "200": {
+            "description": "Current hardware status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "active": { "type": "boolean", "example": true }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["Hardware"],
+        "summary": "Toggle hardware ON/OFF",
+        "description": "Set hardware active status. The hardware device should poll this endpoint to know whether to send measurements.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["active"],
+                "properties": {
+                  "active": { "type": "boolean", "description": "true = ON, false = OFF" }
+                }
+              },
+              "example": { "active": true }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "active": { "type": "boolean" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "active (boolean) is required" }
+        }
+      }
+    },
+    "/api/ranges/latest": {
+      "get": {
+        "tags": ["Ranges"],
+        "summary": "Latest range per tag-anchor pair",
+        "description": "Returns the most recent range measurement for each (tag, anchor) combination. If range_m is null in the DB, it is computed from DS-TWR timestamps.",
+        "responses": {
+          "200": {
+            "description": "Array of latest ranges",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "tag_id": { "type": "integer" },
+                      "anchor_id": { "type": "integer" },
+                      "range_m": { "type": "number", "nullable": true },
+                      "measured_at": { "type": "string", "format": "date-time" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ranges/history": {
+      "get": {
+        "tags": ["Ranges"],
+        "summary": "Range history for a tag-anchor pair",
+        "description": "Returns recent range measurements for a specific tag-anchor pair, ordered newest first. Range is computed from DS-TWR timestamps if not stored.",
+        "parameters": [
+          { "in": "query", "name": "tag_id", "required": true, "schema": { "type": "integer" } },
+          { "in": "query", "name": "anchor_id", "required": true, "schema": { "type": "integer" } },
+          { "in": "query", "name": "limit", "schema": { "type": "integer", "default": 200 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Range time series",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "tag_id": { "type": "integer" },
+                    "anchor_id": { "type": "integer" },
+                    "ranges": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "range_m": { "type": "number", "nullable": true },
+                          "measured_at": { "type": "string", "format": "date-time" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "tag_id and anchor_id are required" }
+        }
+      }
+    },
+    "/api/status/pipeline": {
+      "get": {
+        "tags": ["Status"],
+        "summary": "Pipeline health overview",
+        "description": "Returns measurement and position rates, per-anchor activity stats, and staleness thresholds. Used by the dashboard to show system health.",
+        "responses": {
+          "200": {
+            "description": "Pipeline status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "server_time": { "type": "string", "format": "date-time" },
+                    "measurements": {
+                      "type": "object",
+                      "properties": {
+                        "last_at": { "type": "string", "format": "date-time", "nullable": true },
+                        "age_ms": { "type": "integer", "nullable": true },
+                        "count_60s": { "type": "integer" },
+                        "rate_per_s": { "type": "number" }
+                      }
+                    },
+                    "positions": {
+                      "type": "object",
+                      "properties": {
+                        "last_at": { "type": "string", "format": "date-time", "nullable": true },
+                        "age_ms": { "type": "integer", "nullable": true },
+                        "count_60s": { "type": "integer" },
+                        "rate_per_s": { "type": "number" }
+                      }
+                    },
+                    "anchors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "anchor_id": { "type": "integer" },
+                          "last_at": { "type": "string", "format": "date-time", "nullable": true },
+                          "age_ms": { "type": "integer", "nullable": true },
+                          "count_60s": { "type": "integer" }
+                        }
+                      }
+                    },
+                    "thresholds": {
+                      "type": "object",
+                      "properties": {
+                        "measurement_stale_ms": { "type": "integer" },
+                        "position_stale_ms": { "type": "integer" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

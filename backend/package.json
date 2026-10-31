@@ -1,0 +1,20 @@
+{
+  "name": "uwb-backend",
+  "version": "1.1.0",
+  "private": true,
+  "scripts": {
+    "start": "node index.js",
+    "db:init": "node scripts/init-db.js"
+  },
+  "dependencies": {
+    "compression": "^1.7.5",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.0",
+    "express": "^4.21.0",
+    "pg": "^8.13.0",
+    "swagger-ui-express": "^5.0.1"
+  },
+  "allowScripts": {
+    "@scarf/scarf@1.4.0": true
+  }
+}
